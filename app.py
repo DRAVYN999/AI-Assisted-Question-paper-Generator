@@ -39,27 +39,28 @@ def admin_signup():
         username = request.form["username"]
         password = request.form["password"]
 
-        if username in admins:
-            return "Admin already exists"
-
+        # 👇 ALWAYS SAVE (overwrite allowed)
         hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
         admins[username] = hashed_password
 
-        return "Admin created successfully"
+        return redirect("/admin/login")
 
     return render_template("admin_signup.html")
 @app.route("/admin/login", methods=["GET", "POST"])
 def admin_login():
     if request.method == "POST":
-        username = request.form["username"]
-        password = request.form["password"]
+        username = request.form.get("username")
+        password = request.form.get("password")
 
-        if username in admins and bcrypt.check_password_hash(admins[username], password):
+        if username not in admins:
+            return "Admin not found. Please signup first."
+
+        if bcrypt.check_password_hash(admins[username], password):
             admin = Admin(username)
             login_user(admin)
             return redirect("/admin/dashboard")
         else:
-            return "Invalid admin credentials"
+            return "Wrong password"
 
     return render_template("admin_login.html")
 @app.route("/admin/dashboard")
