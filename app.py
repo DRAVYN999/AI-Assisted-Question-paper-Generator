@@ -1,3 +1,5 @@
+from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user
+from flask_bcrypt import Bcrypt
 from flask import Flask, render_template, request, redirect, url_for
 import random
 import pytesseract
@@ -11,14 +13,66 @@ from docx.shared import Pt
 pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
 
 app = Flask(__name__)
+login_manager = LoginManager()
+login_manager.init_app(app)
 
+bcrypt = Bcrypt(app)
+
+admins = {}
+
+class Admin(UserMixin):
+    def __init__(self, username):
+        self.id = username
+
+@login_manager.user_loader
+def load_user(user_id):
+    return Admin(user_id)
 # ---------- CREATE FOLDERS ----------
 os.makedirs("uploads", exist_ok=True)
 os.makedirs("static", exist_ok=True)
 
 # ---------- HOME ----------
 @app.route("/")
+@app.route("/admin/signup", methods=["GET", "POST"])
+def admin_signup():
+    if request.method == "POST":
+        username = request.form["username"]
+        password = request.form["password"]
+
+        if username in admins:
+            return "Admin already exists"
+
+        hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
+        admins[username] = hashed_password
+
+        return "Admin created successfully"
+
+    return render_template("admin_signup.html")
+@app.route("/admin/login", methods=["GET", "POST"])
+def admin_login():
+    if request.method == "POST":
+        username = request.form["username"]
+        password = request.form["password"]
+
+        if username in admins and bcrypt.check_password_hash(admins[username], password):
+            admin = Admin(username)
+            login_user(admin)
+            return redirect("/admin/dashboard")
+        else:
+            return "Invalid admin credentials"
+
+    return render_template("admin_login.html")
+@app.route("/admin/dashboard")
+@login_required
+def admin_dashboard():
+    return render_template("admin_dashboard.html")
+@app.route("/logout")
+@login_required
+def logout():
+    logout_user()
+    return redirect("/admin/login")
 def home():
+
     return render_template("index.html")
 
 
