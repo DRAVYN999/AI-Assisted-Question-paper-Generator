@@ -13,6 +13,7 @@ from docx.shared import Pt
 pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
 
 app = Flask(__name__)
+app.secret_key = "supersecretkey123"
 login_manager = LoginManager()
 login_manager.init_app(app)
 
