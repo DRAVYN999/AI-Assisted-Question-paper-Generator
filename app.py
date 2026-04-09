@@ -1,7 +1,9 @@
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user
 from flask_bcrypt import Bcrypt
 from flask import Flask, render_template, request, redirect, url_for
+from werkzeug.utils import secure_filename
 import random
+import os
 import pytesseract
 from PIL import Image
 import os
@@ -13,7 +15,8 @@ from docx.shared import Pt
 pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
 
 app = Flask(__name__)
-app.secret_key = "supersecretkey123"
+
+app.secret_key = os.environ.get("SECRET_KEY", "fallback-secret")
 login_manager = LoginManager()
 login_manager.init_app(app)
 
@@ -34,6 +37,8 @@ os.makedirs("static", exist_ok=True)
 
 # ---------- HOME ----------
 @app.route("/")
+def home():
+    return render_template("index.html")
 @app.route("/admin/signup", methods=["GET", "POST"])
 def admin_signup():
     if request.method == "POST":
@@ -73,9 +78,7 @@ def admin_dashboard():
 def logout():
     logout_user()
     return redirect("/admin/login")
-def home():
 
-    return render_template("index.html")
 
 
 # ---------- SELECT INPUT ----------
@@ -104,10 +107,24 @@ def input_method():
 def process_upload():
 
     file = request.files["question_bank"]
-    filename = file.filename
+
+    if not file or file.filename == "":
+        return "No file selected"
+
+    filename = secure_filename(file.filename)
 
     file_path = os.path.join("uploads", filename)
     file.save(file_path)
+
+    # ---------- EXTRACT TEXT ----------
+    if filename.endswith(".pdf"):
+        text = extract_pdf_text(file_path)
+
+    elif filename.endswith(".docx"):
+        text = extract_docx_text(file_path)
+
+    else:
+        text = extract_image_text(file_path)
 
     # ---------- EXTRACT TEXT ----------
     if filename.endswith(".pdf"):
@@ -374,13 +391,13 @@ def templates():
 
 # ---------- HISTORY PAGE ----------
 @app.route("/history")
+@login_required
 def history():
     files = os.listdir("static")
     return render_template("history.html", files=files)
 
 # ---------- RUN ----------
 if __name__ == "__main__":
-   import os
-if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port)
+   
